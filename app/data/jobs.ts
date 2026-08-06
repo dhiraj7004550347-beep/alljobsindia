@@ -1,4 +1,6 @@
-export const jobs = [
+import type { Job } from "../types/job";
+
+export const jobs: Job[] = [
   {
     id: 1,
     title: "SSC CGL 2026",
@@ -18,7 +20,7 @@ export const jobs = [
 
   {
     id: 2,
-    title: "Railway Group D",
+    title: "Railway Group D 2026",
     department: "Indian Railways",
     lastDate: "15 Sep 2026",
     qualification: "10th Pass",
@@ -27,7 +29,7 @@ export const jobs = [
     age: "18 - 33 Years",
     location: "All India",
     applicationFee: "₹500",
-    selectionProcess: "CBT, PET, DV",
+    selectionProcess: "CBT, PET, Document Verification",
     applyLink: "https://indianrailways.gov.in",
     notificationLink: "https://indianrailways.gov.in",
     officialWebsite: "https://indianrailways.gov.in",
@@ -49,4 +51,38 @@ export const jobs = [
     notificationLink: "https://upsc.gov.in",
     officialWebsite: "https://upsc.gov.in",
   },
+
+  {
+    id: 4,
+    title: "IBPS PO 2026",
+    department: "Institute of Banking Personnel Selection",
+    lastDate: "10 Sep 2026",
+    qualification: "Graduate",
+    salary: "₹36,000 - ₹63,000",
+    vacancy: "5208",
+    age: "20 - 30 Years",
+    location: "All India",
+    applicationFee: "₹850",
+    selectionProcess: "Prelims, Mains, Interview",
+    applyLink: "https://ibps.in",
+    notificationLink: "https://ibps.in",
+    officialWebsite: "https://ibps.in",
+  },
+
+  {
+    id: 5,
+    title: "SSC CHSL 2026",
+    department: "Staff Selection Commission",
+    lastDate: "18 Sep 2026",
+    qualification: "12th Pass",
+    salary: "₹19,900 - ₹81,100",
+    vacancy: "4500",
+    age: "18 - 27 Years",
+    location: "All India",
+    applicationFee: "₹100",
+    selectionProcess: "Tier-I, Tier-II",
+    applyLink: "https://ssc.gov.in",
+    notificationLink: "https://ssc.gov.in",
+    officialWebsite: "https://ssc.gov.in",
+  }
 ];
