@@ -15,6 +15,7 @@ export const jobs = [
     notificationLink: "https://ssc.gov.in",
     officialWebsite: "https://ssc.gov.in",
   },
+
   {
     id: 2,
     title: "Railway Group D",
@@ -30,5 +31,22 @@ export const jobs = [
     applyLink: "https://indianrailways.gov.in",
     notificationLink: "https://indianrailways.gov.in",
     officialWebsite: "https://indianrailways.gov.in",
+  },
+
+  {
+    id: 3,
+    title: "UPSC Civil Services 2026",
+    department: "Union Public Service Commission",
+    lastDate: "30 Aug 2026",
+    qualification: "Graduate",
+    salary: "Level 10",
+    vacancy: "1129",
+    age: "21 - 32 Years",
+    location: "All India",
+    applicationFee: "₹100",
+    selectionProcess: "Prelims, Mains, Interview",
+    applyLink: "https://upsc.gov.in",
+    notificationLink: "https://upsc.gov.in",
+    officialWebsite: "https://upsc.gov.in",
   },
 ];
