@@ -1,13 +1,28 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
-  output   = "../lib/generated/prisma"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model Job {
+  id               Int      @id @default(autoincrement())
+  title            String
+  department       String
+  qualification    String
+  vacancy          String
+  salary           String
+  ageLimit         String
+  location         String
+  applicationFee   String
+  selectionProcess String
+  lastDate         DateTime
+  applyLink        String
+  notificationLink String
+  officialWebsite  String
+  category         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
