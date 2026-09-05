@@ -1,56 +1,31 @@
+import Link from "next/link";
+import JobForm from "../../../components/JobForm";
+
 export default function NewJobPage() {
   return (
-    <div className="max-w-4xl">
+    <main className="min-h-screen bg-gray-100 p-4 md:p-8">
+      <div className="max-w-5xl mx-auto">
 
-      <h1 className="text-4xl font-bold mb-8">
-        Add New Job
-      </h1>
+        <div className="mb-6">
+          <Link
+            href="/admin/jobs"
+            className="text-blue-700 font-semibold"
+          >
+            ← Back to Manage Jobs
+          </Link>
 
-      <form className="space-y-5 bg-white p-8 rounded-xl shadow">
+          <h1 className="text-3xl font-bold mt-4">
+            Add New Job
+          </h1>
 
-        <input
-          type="text"
-          placeholder="Job Title"
-          className="w-full border p-3 rounded-lg"
-        />
+          <p className="text-gray-600 mt-1">
+            Create a new government or private job vacancy.
+          </p>
+        </div>
 
-        <input
-          type="text"
-          placeholder="Department"
-          className="w-full border p-3 rounded-lg"
-        />
+        <JobForm />
 
-        <input
-          type="text"
-          placeholder="Qualification"
-          className="w-full border p-3 rounded-lg"
-        />
-
-        <input
-          type="text"
-          placeholder="Vacancy"
-          className="w-full border p-3 rounded-lg"
-        />
-
-        <input
-          type="text"
-          placeholder="Salary"
-          className="w-full border p-3 rounded-lg"
-        />
-
-        <input
-          type="date"
-          className="w-full border p-3 rounded-lg"
-        />
-
-        <button
-          className="bg-blue-700 text-white px-8 py-3 rounded-lg hover:bg-blue-800"
-        >
-          Save Job
-        </button>
-
-      </form>
-
-    </div>
+      </div>
+    </main>
   );
 }

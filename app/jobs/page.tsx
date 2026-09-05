@@ -1,64 +1,44 @@
-"use client";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { getPublicJobsPage } from "../../actions/jobs";
+import PublicJobSearch from "../../components/PublicJobSearch";
+import PublicFooter from "../../components/PublicFooter";
+import { parsePublicJobFilters } from "@/lib/public-jobs-query";
 
-import { useState } from "react";
-import { jobs } from "../data/jobs";
-import JobCard from "../components/JobCard";
-import SearchBar from "../components/SearchBar";
+export const metadata: Metadata = {
+  title: "Latest Jobs in India",
+  description: "Browse active government and private job listings with official source and application links.",
+};
+export const dynamic = "force-dynamic";
 
-export default function JobsPage() {
-  const [search, setSearch] = useState("");
-  const [qualification, setQualification] = useState("All");
+type SearchParams = Record<string, string | string[] | undefined>;
 
-  const filteredJobs = jobs.filter((job) => {
-    const text = search.toLowerCase();
-
-    const matchesSearch =
-      job.title.toLowerCase().includes(text) ||
-      job.department.toLowerCase().includes(text) ||
-      job.qualification.toLowerCase().includes(text);
-
-    const matchesQualification =
-      qualification === "All" || job.qualification === qualification;
-
-    return matchesSearch && matchesQualification;
-  });
+export default async function JobsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+  const filters = parsePublicJobFilters(await searchParams);
+  const result = await getPublicJobsPage(filters);
 
   return (
-    <main className="max-w-7xl mx-auto p-8">
-      <h1 className="text-4xl font-bold mb-8">
-        Latest Government Jobs
-      </h1>
-
-      <SearchBar onSearch={setSearch} />
-
-      {/* Qualification Filter */}
-      <div className="mb-8">
-        <select
-          value={qualification}
-          onChange={(e) => setQualification(e.target.value)}
-          className="border rounded-lg p-3 text-lg w-full md:w-80"
-        >
-          <option value="All">All Qualifications</option>
-          <option value="10th Pass">10th Pass</option>
-          <option value="12th Pass">12th Pass</option>
-          <option value="ITI">ITI</option>
-          <option value="Diploma">Diploma</option>
-          <option value="Graduate">Graduate</option>
-          <option value="B.Tech">B.Tech</option>
-        </select>
-      </div>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredJobs.map((job) => (
-          <JobCard key={job.id} job={job} />
-        ))}
-      </div>
-
-      {filteredJobs.length === 0 && (
-        <div className="text-center mt-10 text-red-600 text-xl font-semibold">
-          No Jobs Found
+    <main className="min-h-screen bg-gray-100">
+      <div className="bg-blue-700 text-white">
+        <div className="mx-auto max-w-6xl px-4 py-12">
+          <Link href="/" className="text-blue-100 hover:text-white">← Home</Link>
+          <h1 className="mt-6 text-4xl font-bold md:text-5xl">Find Jobs</h1>
+          <p className="mt-3 text-lg text-blue-100">Search active Government and Private jobs across India.</p>
         </div>
-      )}
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <PublicJobSearch
+          jobs={result.jobs}
+          filters={{ ...filters, page: result.page }}
+          categories={result.categories}
+          locations={result.locations}
+          total={result.total}
+          page={result.page}
+          pageCount={result.pageCount}
+        />
+      </div>
+      <PublicFooter />
     </main>
   );
 }

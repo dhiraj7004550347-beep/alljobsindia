@@ -1,57 +1,21 @@
-const privateJobs = [
-  {
-    id: 1,
-    company: "TCS",
-    title: "Software Engineer",
-    location: "Bangalore",
-    salary: "₹6 LPA",
-  },
-  {
-    id: 2,
-    company: "Infosys",
-    title: "System Engineer",
-    location: "Pune",
-    salary: "₹5 LPA",
-  },
-  {
-    id: 3,
-    company: "Wipro",
-    title: "Graduate Trainee",
-    location: "Hyderabad",
-    salary: "₹4.5 LPA",
-  },
-];
+import type { Metadata } from "next";
+import Link from "next/link";
+import { getJobs } from "../../actions/jobs";
+import JobCard from "../components/JobCard";
+import PublicFooter from "@/components/PublicFooter";
 
-export default function PrivateJobsPage() {
+export const metadata: Metadata = { title: "Private Jobs", description: "Active private-company job listings in India with official career-page and application links." };
+export const dynamic = "force-dynamic";
+
+export default async function PrivateJobsPage() {
+  const jobs = (await getJobs()).filter((job) => job.category.toLowerCase().includes("private"));
   return (
-    <main className="max-w-7xl mx-auto p-8">
-      <h1 className="text-4xl font-bold text-blue-700 mb-8">
-        Latest Private Jobs
-      </h1>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {privateJobs.map((job) => (
-          <div key={job.id} className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-2xl font-bold">{job.title}</h2>
-
-            <p className="mt-2">
-              <strong>Company:</strong> {job.company}
-            </p>
-
-            <p>
-              <strong>Location:</strong> {job.location}
-            </p>
-
-            <p>
-              <strong>Salary:</strong> {job.salary}
-            </p>
-
-            <button className="mt-5 bg-blue-700 text-white px-5 py-2 rounded-lg">
-              View Details
-            </button>
-          </div>
-        ))}
-      </div>
+    <main className="min-h-screen bg-slate-50">
+      <section className="border-b bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6"><span className="rounded-full bg-white/10 px-4 py-2 text-xs font-extrabold uppercase tracking-widest">Company careers</span><h1 className="mt-5 text-4xl font-black sm:text-5xl">Latest Private Jobs</h1><p className="mt-4 max-w-3xl text-slate-300">Browse active private-company opportunities gathered from public career sources. Check the employer page before applying.</p><div className="mt-7 flex gap-3"><Link href="/" className="rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-slate-950">← Home</Link><Link href="/government-jobs" className="rounded-xl border border-white/20 px-5 py-3 text-sm font-extrabold">Government Jobs →</Link></div></div>
+      </section>
+      <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6"><h2 className="text-3xl font-black">Private Job Listings</h2><p className="mt-2 text-sm text-slate-500">Showing {jobs.length} active listing{jobs.length === 1 ? "" : "s"}.</p>{jobs.length ? <div className="mt-7 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{jobs.map((job) => <JobCard key={job.id} job={job} />)}</div> : <div className="mt-7 rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center"><h3 className="text-xl font-black">No active private jobs found</h3><p className="mt-2 text-sm text-slate-500">Verified active listings will appear here.</p></div>}</section>
+      <PublicFooter />
     </main>
   );
 }

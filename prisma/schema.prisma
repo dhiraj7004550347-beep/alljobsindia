@@ -1,28 +1,239 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  EXPIRED
+  ARCHIVED
+}
+
+enum JobReviewStatus {
+  REVIEW_REQUIRED
+  MANUAL_VERIFIED
+  AUTO_VERIFIED
+  REJECTED
+}
+
+enum JobSourceType {
+  GOVERNMENT
+  PSU
+  BANKING
+  RAILWAY
+  UNIVERSITY
+  HOSPITAL
+  PRIVATE_COMPANY
+  OTHER_OFFICIAL
+}
+
+enum SourceParserType {
+  GENERIC_HTML
+  GOVERNMENT_HTML
+  PDF_NOTIFICATION
+}
+
+enum SourceReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AutomationRunStatus {
+  RUNNING
+  COMPLETED
+  PARTIAL
+  FAILED
+}
+
+enum AutomationAction {
+  DISCOVERED_SOURCE
+  WOULD_ADD
+  ADDED
+  UPDATED
+  DUPLICATE
+  EXPIRED
+  SKIPPED
+  ERROR
+}
+
 model Job {
-  id               Int      @id @default(autoincrement())
+  id               Int       @id @default(autoincrement())
   title            String
-  department       String
-  qualification    String
-  vacancy          String
-  salary           String
-  ageLimit         String
-  location         String
-  applicationFee   String
-  selectionProcess String
-  lastDate         DateTime
-  applyLink        String
-  notificationLink String
-  officialWebsite  String
+  department       String?
+  qualification    String?
+  vacancy          String?
+  salary           String?
+  ageLimit         String?
+  location         String?
+  applicationFee   String?
+  selectionProcess String?
+  description      String?
+  howToApply       String?
+  importantDates   Json?
+  applicationStartDate DateTime?
+  lastDate         DateTime?
+  applyLink        String?
+  notificationLink String?
+  officialWebsite  String?
   category         String
+
+  status           JobStatus @default(DRAFT)
+  featured         Boolean   @default(false)
+
+  sourceId            Int?
+  sourceName          String?
+  sourceUrl           String?
+  sourceJobId         String?
+  sourceHash          String?
+  canonicalApplyUrl   String?
+  canonicalNoticeUrl  String?
+  rawSourceReference  String?
+  firstSeenAt         DateTime @default(now())
+  lastSeenAt          DateTime @default(now())
+  sourceUpdatedAt     DateTime?
+  automationConfidence Float?
+  reviewStatus        JobReviewStatus @default(MANUAL_VERIFIED)
+  automationRunId     Int?
+  postedDate          DateTime?
+  expiresAt           DateTime?
+  expiredAt           DateTime?
+  publishedAt         DateTime?
+
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  source           JobSource?      @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  automationRun    AutomationRun?  @relation(fields: [automationRunId], references: [id], onDelete: SetNull)
+  automationItems  AutomationRunItem[]
+
+  @@unique([sourceId, sourceJobId])
+  @@index([status])
+  @@index([category])
+  @@index([lastDate])
+  @@index([featured])
+  @@index([sourceHash])
+  @@index([sourceUrl])
+  @@index([canonicalApplyUrl])
+  @@index([canonicalNoticeUrl])
+  @@index([reviewStatus])
+}
+
+model JobSource {
+  id                  Int                @id @default(autoincrement())
+  name                String
+  domain              String
+  startUrl            String             @unique
+  type                 JobSourceType
+  category             String
+  enabled              Boolean            @default(false)
+  trusted              Boolean            @default(false)
+  autoPublish          Boolean            @default(false)
+  parserType           SourceParserType    @default(GENERIC_HTML)
+  reviewStatus         SourceReviewStatus  @default(PENDING)
+  discoveredFromUrl   String?
+  lastCheckedAt       DateTime?
+  lastSuccessAt       DateTime?
+  consecutiveFailures Int                 @default(0)
+  lastContentHash     String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  jobs                Job[]
+  runItems            AutomationRunItem[]
+
+  @@index([enabled, trusted])
+  @@index([type])
+  @@index([reviewStatus])
+  @@index([lastContentHash])
+}
+
+model AutomationRun {
+  id               Int                 @id @default(autoincrement())
+  startedAt        DateTime            @default(now())
+  completedAt      DateTime?
+  status           AutomationRunStatus @default(RUNNING)
+  dryRun           Boolean             @default(true)
+  requestedBy      String?
+  sourcesChecked   Int                 @default(0)
+  sourcesSucceeded Int                 @default(0)
+  sourcesFailed    Int                 @default(0)
+  candidates       Int                 @default(0)
+  processed        Int                 @default(0)
+  wouldAdd         Int                 @default(0)
+  added            Int                 @default(0)
+  updated          Int                 @default(0)
+  duplicates       Int                 @default(0)
+  expired          Int                 @default(0)
+  skipped          Int                 @default(0)
+  errors           Int                 @default(0)
+  draftsCreated    Int                 @default(0)
+  durationMs       Int?
+  errorMessage     String?
+
+  jobs             Job[]
+  items            AutomationRunItem[]
+
+  @@index([startedAt])
+  @@index([status])
+}
+
+model AutomationRunItem {
+  id             Int              @id @default(autoincrement())
+  runId          Int
+  sourceId       Int?
+  sourceName     String?
+  candidateTitle String?
+  action         AutomationAction
+  reason         String?
+  jobId          Int?
+  error          String?
+  details        Json?
+  createdAt      DateTime         @default(now())
+
+  run            AutomationRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  source         JobSource?       @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  job            Job?             @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([runId, action])
+  @@index([sourceId])
+  @@index([jobId])
+}
+
+model AutomationLock {
+  key        String   @id
+  runId      Int?
+  acquiredAt DateTime
+  expiresAt  DateTime
+}
+
+model JobAlertSubscription {
+  id               String   @id @default(cuid())
+  email            String
+  emailNormalized  String   @unique
+  keywords         Json
+  categories       Json
+  locations        Json
+  qualification    String?
+  active           Boolean  @default(true)
+  verificationToken String  @unique
+  unsubscribeToken  String  @unique
+  verifiedAt       DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  @@index([active, verifiedAt])
+}
+
+model RateLimitBucket {
+  key             String   @id
+  count           Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  expiresAt       DateTime
+
+  @@index([expiresAt])
 }

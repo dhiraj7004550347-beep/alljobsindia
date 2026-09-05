@@ -2,17 +2,24 @@
   "name": "alljobsindia",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "validate:production": "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./scripts/Validate-AllJobsIndia-Production-Env.ps1",
+    "test": "node --experimental-strip-types --import ./tests/register-loader.mjs --test tests/*.test.mjs",
+    "prebuild": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
+    "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "jose": "^6.2.8",
     "next": "16.3.0",
-    "prisma": "^7.9.1",
+    "pdfjs-dist": "6.2.108",
+    "pg": "^8.22.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.84.0",
@@ -26,7 +33,11 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
+    "prisma": "^7.9.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "nanoid": "3.3.18"
   }
 }
