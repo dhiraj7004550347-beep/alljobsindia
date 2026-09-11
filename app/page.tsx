@@ -25,7 +25,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/jobs")
+    // The public homepage must not request the admin-only view of this API.
+    fetch("/api/jobs", { credentials: "omit", cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         const list = Array.isArray(data)
