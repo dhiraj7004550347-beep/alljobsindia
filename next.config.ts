@@ -1,6 +1,18 @@
 import type { NextConfig } from "next";
 
+const pdfRuntimeFiles = [
+  "./node_modules/@napi-rs/canvas*/**/*",
+  "./node_modules/pdfjs-dist/legacy/build/*.mjs",
+];
+
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  outputFileTracingIncludes: {
+    "/api/admin/sources/*/test": pdfRuntimeFiles,
+    "/api/admin/sources/*/run": pdfRuntimeFiles,
+    "/api/admin/review/*": pdfRuntimeFiles,
+    "/api/automation/*": pdfRuntimeFiles,
+  },
   async headers() {
     return [{
       source: "/(.*)",

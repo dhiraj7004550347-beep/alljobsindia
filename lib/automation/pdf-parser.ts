@@ -13,6 +13,13 @@ export async function extractPdfText(bytes: Uint8Array): Promise<PdfTextResult> 
   // pdfjs checks globalThis.pdfjsWorker before attempting its relative fake-
   // worker import. Load the worker module first so Turbopack never needs to
   // resolve "./pdf.worker.mjs" from a generated .next/server/chunks file.
+  // Install real Node canvas globals before PDF.js evaluates.
+  const { DOMMatrix, ImageData, Path2D } = await import("@napi-rs/canvas");
+  for (const [name, value] of Object.entries({ DOMMatrix, ImageData, Path2D })) {
+    if (!Reflect.get(globalThis, name)) {
+      Object.defineProperty(globalThis, name, { value, writable: true, configurable: true });
+    }
+  }
   await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const loadingTask = pdfjs.getDocument({
