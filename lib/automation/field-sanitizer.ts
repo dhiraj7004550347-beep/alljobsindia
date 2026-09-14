@@ -51,6 +51,20 @@ function cutAt(value: string, patterns: RegExp[], minimumIndex = 20) {
   return value.slice(0, cut).trim();
 }
 
+function trimPdfNarrative(value: string, includeBulletMarkers = false) {
+  const patterns: RegExp[] = [
+    /\s+(?:duration|period)\s+of\s+(?:internship|engagement|training)\b/i,
+    /\s+(?:location|place)\s+of\s+(?:internship|engagement|training|work)\b/i,
+    /\s+\b(?:selected students?|joining procedures?|joining formalities?)\b/i,
+  ];
+
+  if (includeBulletMarkers) {
+    patterns.push(/\s+\b[a-h]\.\s+(?=[A-Z])/);
+  }
+
+  return cutAt(value, patterns);
+}
+
 function qualification(value: string | null | undefined) {
   let cleaned = sanitizeSourceTextField(value, 1_200);
   if (!cleaned) return null;
@@ -100,7 +114,12 @@ function salary(value: string | null | undefined) {
     /\s+(?:any additional information|education(?:al)? qualification|upper age limit|age limit|contingency grant|general (?:conditions|instructions))\b/i,
     /\s+\([ivx]+\)\s+(?:education|age|nationality)\b/i,
   ]);
-  if (!/(?:₹|\brs\.?\b|rupees?|pay\s*(?:level|scale|matrix)|salary|stipend|remuneration|emoluments?|per month|monthly)/i.test(cleaned)) {
+  cleaned = trimPdfNarrative(cleaned, true);
+
+  const amountEvidence =
+    /(?:₹\s*\.?\s*[\d,]+(?:\.\d+)?|\brs\.?\s*\.?\s*[\d,]+(?:\.\d+)?|rupees?\s*[\d,]+|\bpay\s*(?:level|scale|matrix)\s*[-:]?\s*\d+|\b(?:salary|stipend|emoluments?|remuneration)\D{0,25}\d[\d,]*)/i;
+
+  if (!amountEvidence.test(cleaned)) {
     return null;
   }
   return sanitizeSourceTextField(cleaned, 220);
@@ -156,16 +175,46 @@ function selectionProcess(value: string | null | undefined) {
   return sanitizeSourceTextField(cleaned, 360);
 }
 
+const TITLE_LOCATION_PATTERN =
+  /\b(Bengaluru|Bangalore|Chennai|Hyderabad|Kochi|Mysuru|Mysore|Ahilyanagar|Delhi|Mumbai|Kolkata|Pune|Bhopal|Jaipur|Lucknow|Kanpur|Gurugram|Noida|Visakhapatnam|Thiruvananthapuram)\b/i;
+
+function inferredDepartment(job: CollectedJob) {
+  const current = department(job.department);
+  if (current) return current;
+
+  const title = sanitizeSourceTextField(job.title, 240) || "";
+  const prefix = title.match(/^([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)?)(?:,\s+|\s+[-–]\s+)/)?.[1];
+
+  if (prefix && prefix.length >= 3 && !/^(?:THE|POST|JOB|NOTICE|ADVT?)$/i.test(prefix)) {
+    return prefix;
+  }
+
+  return null;
+}
+
+function inferredLocation(job: CollectedJob) {
+  const current = sanitizeSourceTextField(job.location, 180);
+  if (current && !/^(?:not specified|n\/a|na)$/i.test(current)) return current;
+
+  const match = cleanText(job.title).match(TITLE_LOCATION_PATTERN);
+  if (!match) return null;
+
+  if (/^bangalore$/i.test(match[1])) return "Bengaluru";
+  if (/^mysore$/i.test(match[1])) return "Mysuru";
+
+  return match[1];
+}
+
 export function sanitizeCollectedJobFields(job: CollectedJob): CollectedJob {
   return {
     ...job,
     title: sanitizeSourceTextField(job.title, 240) || job.title.slice(0, 240),
-    department: department(job.department),
+    department: inferredDepartment(job),
     qualification: qualification(job.qualification),
     vacancy: vacancy(job.vacancy, job.rawText),
     salary: salary(job.salary),
     ageLimit: ageLimit(job.ageLimit),
-    location: sanitizeSourceTextField(job.location, 180),
+    location: inferredLocation(job),
     applicationFee: applicationFee(job.applicationFee),
     selectionProcess: selectionProcess(job.selectionProcess),
     description: sanitizeSourceTextField(job.description, 2_000),

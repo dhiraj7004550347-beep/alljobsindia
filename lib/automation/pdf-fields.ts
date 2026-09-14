@@ -27,23 +27,31 @@ function dateAfter(text: string, labels: string) {
 
 function vacancyCount(text: string) {
   const patterns = [
-    /\btotal\s+(?:(?:number|no\.?)\s+of\s+)?(?:vacanc(?:y|ies)|posts?|fellowships?)\s*[:\-]?\s*(\d{1,5})\b/i,
-    /\b(?:number|no\.?)\s+of\s+(?:vacanc(?:y|ies)|posts?|fellowships?)\s*[:\-]\s*(\d{1,5})\b/i,
-    /\b(?:number|no\.?)\s+of\s+(?:vacanc(?:y|ies)|posts?|fellowships?)\s+(\d{2,5})\b/i,
-    /\b(?:vacanc(?:y|ies)|posts?|fellowship\s*s?)\s*[:\-]\s*(\d{1,5})\b/i,
+    /\btotal\s+(?:(?:number|no\.?)\s+of\s+)?(?:the\s+)?(?:vacanc(?:y|ies)|posts?|positions?|fellowships?|seats?)\s*(?:is|are|:|-)?\s*(\d{1,5})\b/i,
+    /\b(?:number|no\.?)\s+of\s+(?:the\s+)?(?:vacanc(?:y|ies)|posts?|positions?|fellowships?|seats?)\s*(?:is|are|:|-)?\s*(\d{1,5})\b/i,
+    /\b(?:vacanc(?:y|ies)|posts?|positions?|fellowships?|seats?)\s*(?:is|are|:|-)\s*(\d{1,5})\b/i,
+    /\b(?:vacanc(?:y|ies)|posts?|positions?|fellowships?)\s+(\d{2,5})\b/i,
   ];
+
   for (const pattern of patterns) {
     const match = text.match(pattern);
     const value = match?.[1];
+
     if (!value || match?.index === undefined) continue;
-    const after = text.slice(match.index + match[0].length, match.index + match[0].length + 4);
-    // A single digit followed by a full stop is normally a table/serial-number
-    // fragment ("No. of Vacancies 1.") rather than a supported total.
+
+    const after = text.slice(
+      match.index + match[0].length,
+      match.index + match[0].length + 4
+    );
+
     if (value.length === 1 && /^\s*\./.test(after)) continue;
+
     return value;
   }
+
   return null;
 }
+
 
 function organizationName(text: string) {
   const heading = text.slice(0, 2_000).match(
