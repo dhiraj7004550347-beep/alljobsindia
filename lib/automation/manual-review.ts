@@ -1,7 +1,8 @@
 import "server-only";
 
 import type { JobSource, Prisma } from "@prisma/client";
-import { Prisma as PrismaRuntime } from "@prisma/client";
+import PrismaClientPackage from "@prisma/client";
+const { Prisma: PrismaRuntime } = PrismaClientPackage;
 import { prisma } from "@/lib/prisma";
 import { automationConfig } from "./config";
 import { collectSources } from "./collector";
@@ -35,6 +36,8 @@ import {
   reviewSnapshotHash,
 } from "./review";
 import type { CollectedJob, PreviewJob } from "./types";
+import { prepareCorrectedCandidate, sanitizeReviewCorrections, ReviewCorrectionValidationError } from "./review-corrections";
+import { readLatestReviewDecisions } from "./review-ledger";
 import { validateCandidate } from "./validator";
 
 export class ManualReviewLockedError extends Error {
@@ -65,6 +68,7 @@ export class ManualReviewNotFoundError extends Error {
 type ResolvedReviewCandidate = {
   source: JobSource;
   candidate: CollectedJob;
+  original: CollectedJob;
   preview: PreviewJob;
   existing: { id: number } | null;
   matchedBy: string | null;
@@ -138,6 +142,7 @@ async function resolveReviewCandidate(input: {
   sourceId: number;
   candidateKey: string;
   snapshotHash: string;
+  corrections?: unknown;
 }): Promise<ResolvedReviewCandidate> {
   const source = await prisma.jobSource.findUnique({
     where: { id: input.sourceId },
@@ -151,21 +156,24 @@ async function resolveReviewCandidate(input: {
     );
   }
 
+  const corrections = sanitizeReviewCorrections(input.corrections);
   let staleCandidateFound = false;
   for (const rawCandidate of result.jobs.slice(0, automationConfig.maxJobsPerRun)) {
-    const candidate = sanitizeCollectedJobFields(
+    const original = sanitizeCollectedJobFields(
       await extractWithOptionalAi(sanitizeCollectedJobFields(rawCandidate))
     );
-    if (reviewCandidateKey(source.id, candidate) !== input.candidateKey) {
+    if (reviewCandidateKey(source.id, original) !== input.candidateKey) {
       continue;
     }
-    if (reviewSnapshotHash(candidate) !== input.snapshotHash) {
+    if (reviewSnapshotHash(original) !== input.snapshotHash) {
       staleCandidateFound = true;
       continue;
     }
 
+    // Verify the original source identity BEFORE applying any operator values.
+    const candidate = prepareCorrectedCandidate(original, corrections);
     const validation = validateCandidate(candidate, source);
-    const match = await existingMatch(candidate, source);
+    const match = await existingMatch(original, source) || await existingMatch(candidate, source);
     let action: PreviewJob["action"];
     let reason: string;
 
@@ -189,16 +197,21 @@ async function resolveReviewCandidate(input: {
       }
     }
 
-    return {
-      source,
-      candidate,
-      preview: buildPreviewJob(
+    const preview = buildPreviewJob(
         candidate,
         source,
         validation.confidence,
         action,
         reason
-      ),
+      );
+    // The action always refers to the original source snapshot, never a client hash.
+    preview.candidateKey = input.candidateKey;
+    preview.snapshotHash = input.snapshotHash;
+    return {
+      source,
+      candidate,
+      original,
+      preview,
       existing: match?.job || null,
       matchedBy: match?.matchedBy || null,
     };
@@ -217,12 +230,20 @@ export async function createManualDraft(input: {
   candidateKey: string;
   snapshotHash: string;
   actor: string;
+  corrections?: unknown;
 }) {
   if (!automationConfig.allowManualDrafts) {
     throw new ManualReviewLockedError("draft");
   }
 
-  const resolved = await resolveReviewCandidate(input);
+  const corrections = sanitizeReviewCorrections(input.corrections);
+  const resolved = await resolveReviewCandidate({ ...input, corrections });
+  const decisions = await readLatestReviewDecisions(input.sourceId);
+  const decision = decisions.get(`${input.candidateKey}|${input.snapshotHash}`);
+  if (decision?.decision === "REJECTED" ||
+      (decision?.decision === "NEEDS_CORRECTION" && Object.keys(corrections).length === 0)) {
+    throw new ManualReviewConflictError("This snapshot requires review before draft creation.");
+  }
   const eligibility = manualDraftEligibility(resolved.preview, true);
   if (!eligibility.allowed) {
     throw new ManualReviewConflictError(eligibility.reason);
@@ -241,10 +262,8 @@ export async function createManualDraft(input: {
 
     // Recheck persistence after acquiring the global lock. This makes repeated
     // clicks and concurrent approvals idempotent and never turns them into updates.
-    const currentMatch = await existingMatch(
-      resolved.candidate,
-      resolved.source
-    );
+    const currentMatch = await existingMatch(resolved.original, resolved.source) ||
+      await existingMatch(resolved.candidate, resolved.source);
     if (currentMatch) {
       const changes = changedFields(currentMatch.job, resolved.candidate);
       const action = changes.length ? "WOULD_UPDATE" : "DUPLICATE";
@@ -268,6 +287,8 @@ export async function createManualDraft(input: {
         reason,
         details: jsonDetails({
           kind: "manual-review-draft",
+          corrections,
+          original: resolved.original,
           actor: input.actor,
           candidateKey: input.candidateKey,
           snapshotHash: input.snapshotHash,
@@ -323,6 +344,8 @@ export async function createManualDraft(input: {
       reason,
       details: jsonDetails({
         kind: "manual-review-draft",
+        corrections,
+        original: resolved.original,
         actor: input.actor,
         candidateKey: input.candidateKey,
         snapshotHash: input.snapshotHash,
@@ -400,6 +423,68 @@ export async function recordManualReviewDecision(input: {
     startedAt
   );
   return { saved: true, decision: input.decision, reason } as const;
+}
+
+export async function recordManualReviewCorrection(input: {
+  sourceId: number;
+  candidateKey: string;
+  snapshotHash: string;
+  actor: string;
+  corrections: unknown;
+}) {
+  if (!automationConfig.allowReviewDecisions) throw new ManualReviewLockedError("decision");
+  const corrections = sanitizeReviewCorrections(input.corrections);
+  if (!Object.keys(corrections).length) {
+    throw new ReviewCorrectionValidationError("At least one changed field is required.");
+  }
+  const resolved = await resolveReviewCandidate({ ...input, corrections });
+  const decisions = await readLatestReviewDecisions(input.sourceId);
+  const decision = decisions.get(`${input.candidateKey}|${input.snapshotHash}`);
+  if (decision?.decision === "REJECTED") {
+    throw new ManualReviewConflictError("This exact snapshot was rejected. Review the decision before saving corrections.");
+  }
+  const startedAt = new Date();
+  const run = await createAutomationRun(true, `manual-review-correction:${input.actor}`.slice(0, 120));
+  try {
+    const reason = "Corrections saved for review. No Job was created or published.";
+    await logRunItem({
+      runId: run.id, sourceId: resolved.source.id, sourceName: resolved.source.name,
+      candidateTitle: resolved.candidate.title, action: "SKIPPED", reason,
+      jobId: resolved.existing?.id || null,
+      details: jsonDetails({ kind: "manual-review-correction", actor: input.actor,
+        candidateKey: input.candidateKey, snapshotHash: input.snapshotHash,
+        corrections, preview: resolved.preview, outcome: "CORRECTION_SAVED" }),
+    });
+    await finishAutomationRun(run.id, "COMPLETED", runCounts({ skipped: 1 }), startedAt);
+    return { saved: true, corrections, preview: resolved.preview, reason } as const;
+  } catch (error) {
+    await finishAutomationRun(run.id, "FAILED", runCounts({ errors: 1 }), startedAt,
+      error instanceof Error ? error.message : "Correction failed").catch(() => undefined);
+    throw error;
+  }
+}
+
+/** Reload only recorded corrections. Eligibility is rechecked when saving or creating a draft. */
+export async function readManualReviewCorrections(sourceId: number) {
+  const items = await prisma.automationRunItem.findMany({
+    where: { sourceId, action: "SKIPPED", details: { path: ["kind"], equals: "manual-review-correction" } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 200,
+    select: { details: true },
+  });
+  const seen = new Set<string>();
+  const saved: Array<{ candidateKey: string; snapshotHash: string; corrections: ReturnType<typeof sanitizeReviewCorrections> }> = [];
+  for (const item of items) {
+    const d = item.details as Record<string, unknown> | null;
+    if (!d || typeof d.candidateKey !== "string" || typeof d.snapshotHash !== "string") continue;
+    const key = `${d.candidateKey}|${d.snapshotHash}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    try {
+      saved.push({ candidateKey: d.candidateKey, snapshotHash: d.snapshotHash,
+        corrections: sanitizeReviewCorrections(d.corrections) });
+    } catch { /* An incompatible historical record never supplies editable values. */ }
+  }
+  return saved;
 }
 
 export function isManualReviewDatabaseConflict(error: unknown) {

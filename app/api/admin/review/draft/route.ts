@@ -11,6 +11,8 @@ import {
 } from "@/lib/automation/manual-review";
 import { checkRateLimit, requestIp } from "@/lib/rate-limit";
 
+import { sanitizeReviewCorrections, ReviewCorrectionValidationError } from "@/lib/automation/review-corrections";
+
 export const dynamic = "force-dynamic";
 
 const inputSchema = z.object({
@@ -18,6 +20,7 @@ const inputSchema = z.object({
   candidateKey: z.string().regex(/^[a-f0-9]{64}$/),
   snapshotHash: z.string().regex(/^[a-f0-9]{64}$/),
   confirmation: z.literal("CREATE_DRAFT"),
+  corrections: z.unknown().optional(),
 }).strict();
 
 export async function POST(request: NextRequest) {
@@ -49,6 +52,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  let corrections;
+  try { corrections = sanitizeReviewCorrections(parsed.data.corrections); }
+  catch (error) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : "Invalid corrections." }, { status: 400 });
+  }
   const rate = await checkRateLimit({
     namespace: "manual-draft",
     identifier: `${session.username}:${requestIp(request)}`,
@@ -65,11 +73,14 @@ export async function POST(request: NextRequest) {
   try {
     const result = await createManualDraft({
       ...parsed.data,
+      corrections,
       actor: session.username,
     });
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    const status = error instanceof ManualReviewLockedError
+    const status = error instanceof ReviewCorrectionValidationError
+      ? 400
+      : error instanceof ManualReviewLockedError
       ? 423
       : error instanceof ManualReviewNotFoundError
         ? 404
