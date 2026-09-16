@@ -58,8 +58,10 @@ export function parseSupportedDate(value: unknown): Date | null {
   const raw = cleanText(value);
   if (!raw) return null;
 
-  const iso = raw.match(/^(20\d{2})-(\d{1,2})-(\d{1,2})(?:T.*)?$/);
+  const iso = raw.match(/^(20\d{2})-(\d{1,2})-(\d{1,2})(?:T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2}))?$/);
   const dmy = raw.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](20\d{2})$/);
+  const named = raw.match(/^(\d{1,2})(?:st|nd|rd|th)?[\s-]+([A-Za-z]+)[\s,-]+(20\d{2})$/i);
+  const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
   let year: number;
   let month: number;
@@ -73,15 +75,16 @@ export function parseSupportedDate(value: unknown): Date | null {
     day = Number(dmy[1]);
     month = Number(dmy[2]);
     year = Number(dmy[3]);
-  } else if (/20\d{2}/.test(raw)) {
-    const parsed = new Date(raw);
-    if (Number.isNaN(parsed.getTime())) return null;
-    return parsed;
+  } else if (named) {
+    day = Number(named[1]);
+    month = months.findIndex(value => value === named[2].toLowerCase() || value.slice(0, 3) === named[2].toLowerCase()) + 1;
+    year = Number(named[3]);
   } else {
     return null;
   }
 
-  const date = new Date(Date.UTC(year, month - 1, day, 23, 59, 59));
+  if (raw.includes("T") && Number.isNaN(new Date(raw).getTime())) return null;
+  const date = new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999));
   return date.getUTCFullYear() === year &&
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day

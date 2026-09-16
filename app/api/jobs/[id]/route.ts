@@ -1,3 +1,4 @@
+import { activePublishedJobsWhere } from "@/lib/public-jobs-query";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { isAdminRequest } from "../../../../lib/admin-auth";
@@ -39,12 +40,7 @@ export async function GET(
       : await prisma.job.findFirst({
           where: {
             id: jobId,
-            status: "PUBLISHED",
-            OR: [
-              { lastDate: null, expiresAt: null },
-              { lastDate: { gte: new Date() } },
-              { expiresAt: { gte: new Date() } },
-            ],
+            ...activePublishedJobsWhere(),
           },
           select: publicJobSelect,
         });

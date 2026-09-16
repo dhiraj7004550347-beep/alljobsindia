@@ -47,3 +47,9 @@ export async function POST(
 ) {
   return handle(request);
 }
+
+// Vercel schedules invoke GET. Both entry points use the same authentication
+// and server-controlled write gates.
+export async function GET(request: NextRequest) {
+  return handle(request);
+}

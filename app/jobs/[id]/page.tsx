@@ -1,3 +1,4 @@
+import { activePublishedJobsWhere } from "@/lib/public-jobs-query";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { cache } from "react";
@@ -16,12 +17,7 @@ const getPublishedJob = cache(async (id: number) => {
   return prisma.job.findFirst({
     where: {
       id,
-      status: "PUBLISHED",
-      OR: [
-        { lastDate: null, expiresAt: null },
-        { lastDate: { gte: now } },
-        { expiresAt: { gte: now } },
-      ],
+      ...activePublishedJobsWhere(now),
     },
   });
 });

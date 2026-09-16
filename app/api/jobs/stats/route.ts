@@ -1,4 +1,5 @@
-﻿import { NextRequest, NextResponse } from "next/server"
+import { activePublishedJobsWhere } from "@/lib/public-jobs-query";
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { isAdminRequest } from "@/lib/admin-auth"
 
@@ -10,12 +11,7 @@ export async function GET(request: NextRequest) {
       where: admin
         ? undefined
         : {
-            status: "PUBLISHED",
-            OR: [
-              { lastDate: null, expiresAt: null },
-              { lastDate: { gte: now } },
-              { expiresAt: { gte: now } },
-            ],
+            ...activePublishedJobsWhere(now),
           },
       orderBy: {
         createdAt: "desc",
@@ -37,17 +33,19 @@ export async function GET(request: NextRequest) {
     const active = jobs.filter(
       (job) =>
         job.status === "PUBLISHED" &&
-        (!job.lastDate || job.lastDate >= now)
+        (!job.lastDate || job.lastDate >= now) &&
+        (!job.expiresAt || job.expiresAt >= now)
     ).length
 
     const expired = jobs.filter(
       (job) =>
-        (job.status === "EXPIRED" || Boolean(job.lastDate && job.lastDate < now))
+        (job.status === "EXPIRED" || Boolean(job.lastDate && job.lastDate < now) || Boolean(job.expiresAt && job.expiresAt < now))
     ).length
 
     const closingSoon = jobs.filter((job) => {
-      if (!job.lastDate) return false
-      const diff = job.lastDate.getTime() - now.getTime()
+      const deadlines = [job.lastDate, job.expiresAt].filter((date): date is Date => date !== null)
+      if (!deadlines.length) return false
+      const diff = Math.min(...deadlines.map(date => date.getTime())) - now.getTime()
 
       const days =
         diff / (1000 * 60 * 60 * 24)

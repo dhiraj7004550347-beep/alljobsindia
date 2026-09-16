@@ -33,13 +33,12 @@ export function parsePublicJobFilters(
   };
 }
 
-export function activePublishedJobsWhere(now: Date): Prisma.JobWhereInput {
+export function activePublishedJobsWhere(now: Date = new Date()): Prisma.JobWhereInput {
   return {
     status: "PUBLISHED",
-    OR: [
-      { lastDate: null, expiresAt: null },
-      { lastDate: { gte: now } },
-      { expiresAt: { gte: now } },
+    AND: [
+      { OR: [{ lastDate: null }, { lastDate: { gte: now } }] },
+      { OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] },
     ],
   };
 }
@@ -70,7 +69,7 @@ export function buildPublicJobsWhere(
     and.push({
       OR: [
         { lastDate: { gte: now, lte: end } },
-        { lastDate: null, expiresAt: { gte: now, lte: end } },
+        { expiresAt: { gte: now, lte: end } },
       ],
     });
   }

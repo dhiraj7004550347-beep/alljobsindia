@@ -383,6 +383,17 @@ export function extractAnchorJobs(html: string, source: JobSource, sourceUrl: st
     /<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi
   )];
 
+  // A notice title and its View More link often share the exact URL. Prefer
+  // that explicit title to nearby text, which can include the preceding card.
+  const titlesByUrl = new Map<string, string>();
+  for (const anchor of anchors) {
+    const href = canonicalizeUrl(anchor[1], sourceUrl);
+    const title = cleanNoticeTitle(stripHtml(anchor[2]));
+    if (href && !genericTitle(title) && jobTitleSignal(title) && title.length >= 10) {
+      titlesByUrl.set(href, title);
+    }
+  }
+
   for (const match of anchors) {
     const anchorTitle = stripHtml(match[2]);
     const href = canonicalizeUrl(match[1], sourceUrl);
@@ -400,7 +411,7 @@ export function extractAnchorJobs(html: string, source: JobSource, sourceUrl: st
     if (/\b(?:biodata|undertaking|ctc negotiation|acquaint yourself|scribe guidelines?|call letter|result|marks secured|interview schedule|list of candidates|provisionally selected)\b/i.test(anchorTitle)) continue;
     const semanticTitle = isAdvertisementPdf ? "DOWNLOAD ADVERTISEMENT" : anchorTitle;
     const title = cleanNoticeTitle(genericTitle(semanticTitle)
-      ? contextualJobTitle(beforeHtml) || anchorTitle
+      ? titlesByUrl.get(href) || contextualJobTitle(beforeHtml) || anchorTitle
       : anchorTitle);
     if (title.length < 5 || title.length > 500 || genericTitle(title) || !jobTitleSignal(title)) {
       continue;

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { activePublishedJobsWhere } from "../public-jobs-query";
 import { automationConfig } from "./config";
 
 export type LaunchReadinessCheck = {
@@ -54,6 +55,9 @@ function validPublicSiteUrl() {
 export async function getLaunchReadiness(): Promise<LaunchReadiness> {
   const checks: LaunchReadinessCheck[] = [];
   let databaseOk = true;
+  const now = new Date();
+  let enabledSources = 0;
+  let latestRunStartedAt: Date | null = null;
   let sources = 0;
   let unsafeSources = 0;
   let publishedJobs = 0;
@@ -67,14 +71,15 @@ export async function getLaunchReadiness(): Promise<LaunchReadiness> {
       prisma.jobSource.findMany({
         select: { enabled: true, trusted: true, autoPublish: true, reviewStatus: true },
       }),
-      prisma.job.count({ where: { status: "PUBLISHED" } }),
+      prisma.job.count({ where: activePublishedJobsWhere(now) }),
       prisma.job.count({ where: { status: "DRAFT" } }),
       prisma.automationRun.findFirst({
         orderBy: { startedAt: "desc" },
-        select: { id: true, status: true },
+        select: { id: true, status: true, startedAt: true },
       }),
     ]);
     sources = sourceRows.length;
+    enabledSources = sourceRows.filter(source => source.enabled && source.trusted && source.reviewStatus === "APPROVED").length;
     // A source may be deliberately approved/trusted for controlled collection
     // later. It is unsafe only when trust/approval is inconsistent or the
     // per-source auto-publish flag is on; the global publish gate is checked
@@ -88,6 +93,7 @@ export async function getLaunchReadiness(): Promise<LaunchReadiness> {
     draftJobs = drafts;
     latestRunId = latestRun?.id ?? null;
     latestRunStatus = latestRun?.status ?? null;
+    latestRunStartedAt = latestRun?.startedAt ?? null;
   } catch {
     databaseOk = false;
   }
@@ -128,15 +134,17 @@ export async function getLaunchReadiness(): Promise<LaunchReadiness> {
   ));
   checks.push(check(
     "manual-drafts",
-    "Manual draft creation is locked",
-    !automationConfig.allowManualDrafts,
-    !automationConfig.allowManualDrafts ? "Manual draft gate is locked." : "Manual draft gate is open.",
+    "Manual draft creation is available",
+    automationConfig.allowManualDrafts,
+    automationConfig.allowManualDrafts ? "Reviewed drafts can be created; they remain unpublished." : "Manual draft creation is locked. Enable it only when ready to save reviewed notices.",
+    "WARNING",
   ));
   checks.push(check(
     "review-decisions",
-    "Persistent review decisions are locked",
-    !automationConfig.allowReviewDecisions,
-    !automationConfig.allowReviewDecisions ? "Review-decision gate is locked." : "Review-decision gate is open.",
+    "Correction saving is available",
+    automationConfig.allowReviewDecisions,
+    automationConfig.allowReviewDecisions ? "Corrections and review decisions can be saved." : "Correction saving is locked; edits cannot be persisted yet.",
+    "WARNING",
   ));
   checks.push(check(
     "auto-publish",
@@ -156,25 +164,28 @@ export async function getLaunchReadiness(): Promise<LaunchReadiness> {
   ));
   checks.push(check(
     "content",
-    "At least one published job is available",
+    "At least one active public job is available",
     databaseOk && publishedJobs > 0,
     !databaseOk
       ? "Published content could not be checked."
       : publishedJobs > 0
-        ? `${publishedJobs} published job(s) are available.`
-        : "No published job exists yet; public launch would be empty.",
+        ? `${publishedJobs} active public job(s) are available.`
+        : "No active public job exists; expired published records do not count.",
   ));
   checks.push(check(
-    "recent-run",
-    "Latest automation run is not failed",
-    databaseOk && (latestRunStatus === null || latestRunStatus !== "FAILED"),
-    !databaseOk
-      ? "Latest run could not be checked."
-      : latestRunStatus && latestRunStatus === "FAILED"
-        ? `Latest run #${latestRunId} failed; inspect its logs.`
-        : latestRunId
-          ? `Latest run #${latestRunId} is ${latestRunStatus}.`
-          : "No automation run has been recorded yet.",
+    "enabled-sources", "Scheduled collection has approved sources",
+    databaseOk && enabledSources > 0,
+    `${enabledSources} approved, trusted source(s) are enabled. Disabled sources remain available for read-only review.`,
+    "WARNING",
+  ));
+  const recentSuccessfulRun = Boolean(latestRunStartedAt && latestRunStatus === "COMPLETED" &&
+    latestRunStartedAt.getTime() <= now.getTime() && now.getTime() - latestRunStartedAt.getTime() <= 48 * 60 * 60 * 1000);
+  checks.push(check(
+    "recent-run", "Latest automation run completed within 48 hours",
+    databaseOk && recentSuccessfulRun,
+    latestRunStartedAt
+      ? `Latest run #${latestRunId}: ${latestRunStatus}, started ${latestRunStartedAt.toISOString()}. A completed dry-run does not verify publishing or alert delivery.`
+      : "No automation run is available. Verify the schedule and source configuration.",
     "WARNING",
   ));
 

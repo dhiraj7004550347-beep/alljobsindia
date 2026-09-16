@@ -1,3 +1,4 @@
+import { activePublishedJobsWhere } from "@/lib/public-jobs-query";
 import type { MetadataRoute } from "next";
 import { prisma } from "../lib/prisma";
 import { SITE_CONFIG } from "../lib/site-config";
@@ -8,12 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const jobs = await prisma.job.findMany({
     where: {
-      status: "PUBLISHED",
-      OR: [
-        { lastDate: null, expiresAt: null },
-        { lastDate: { gte: new Date() } },
-        { expiresAt: { gte: new Date() } },
-      ],
+      ...activePublishedJobsWhere(),
     },
     select: {
       id: true,

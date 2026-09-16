@@ -1,3 +1,4 @@
+import { activePublishedJobsWhere } from "@/lib/public-jobs-query";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { isAdminRequest } from "../../../lib/admin-auth";
@@ -16,12 +17,7 @@ export async function GET(request: NextRequest) {
       ? await prisma.job.findMany({ orderBy: { createdAt: "desc" } })
       : await prisma.job.findMany({
           where: {
-            status: "PUBLISHED",
-            OR: [
-              { lastDate: null, expiresAt: null },
-              { lastDate: { gte: now } },
-              { expiresAt: { gte: now } },
-            ],
+            ...activePublishedJobsWhere(now),
           },
           orderBy: { createdAt: "desc" },
           select: publicJobSelect,

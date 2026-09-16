@@ -48,7 +48,7 @@ export default function LaunchReadinessPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold">Launch Readiness</h1>
-          <p className="mt-2 text-gray-600">Read-only certification for the V9 reliability, V10 review and V11 launch gates.</p>
+          <p className="mt-2 text-gray-600">Checks for a controlled job-listing launch. Resource sections and alert delivery need separate verification.</p>
         </div>
         <div className="flex gap-3">
           <Link href="/admin/review" className="rounded-lg border bg-white px-4 py-2 font-semibold">Manual Review</Link>
@@ -60,13 +60,13 @@ export default function LaunchReadinessPage() {
         <>
           <section className={`rounded-2xl border p-5 ${readiness.ready ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="text-sm font-bold uppercase tracking-wide">Overall certification</p><h2 className="mt-1 text-2xl font-black">{readiness.ready ? "READY FOR CONTROLLED LAUNCH" : "BLOCKED — COMPLETE REQUIRED GATES"}</h2></div>
+              <div><p className="text-sm font-bold uppercase tracking-wide">Controlled launch checks</p><h2 className="mt-1 text-2xl font-black">{readiness.ready ? "READY FOR CONTROLLED LAUNCH" : "BLOCKED — COMPLETE REQUIRED GATES"}</h2></div>
               <p className="text-sm text-gray-600">Checked {new Date(readiness.generatedAt).toLocaleString("en-IN")}</p>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Metric label="Sources" value={readiness.counts.sources} />
               <Metric label="Unsafe source states" value={readiness.counts.unsafeSources} />
-              <Metric label="Published jobs" value={readiness.counts.publishedJobs} />
+              <Metric label="Active public jobs" value={readiness.counts.publishedJobs} />
               <Metric label="Draft jobs" value={readiness.counts.draftJobs} />
             </div>
           </section>

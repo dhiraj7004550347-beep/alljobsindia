@@ -1,5 +1,6 @@
 import type { JobStatus } from "@prisma/client";
 import { z } from "zod";
+import { parseSupportedDate } from "./automation/normalizer";
 
 export type JobWriteData = {
   title: string;
@@ -37,7 +38,7 @@ function validHttpUrl(value: string) {
 
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
   } catch {
     return false;
   }
@@ -88,10 +89,8 @@ export function parseJobWriteData(
   const parseDate = (value: unknown, label: string) => {
     const raw = text(value);
     if (!raw) return { value: null };
-    const date = /^20\d{2}-\d{2}-\d{2}$/.test(raw)
-      ? new Date(`${raw}T23:59:59.999Z`)
-      : new Date(raw);
-    return Number.isNaN(date.getTime())
+    const date = parseSupportedDate(raw);
+    return !date
       ? { error: `${label} is invalid.` }
       : { value: date };
   };
@@ -99,6 +98,9 @@ export function parseJobWriteData(
   const startDate = parseDate(body.applicationStartDate, "Application start date");
   if (deadline.error || startDate.error) {
     return { ok: false, error: deadline.error || startDate.error || "Invalid date." };
+  }
+  if (deadline.value && startDate.value && startDate.value > deadline.value) {
+    return { ok: false, error: "Application start date must not be after the last date." };
   }
 
   const applyLink = text(body.applyLink);

@@ -1,4 +1,5 @@
 import { sanitizeCollectedJobFields } from "./field-sanitizer";
+import { parseSupportedDate } from "./normalizer";
 import type { CollectedJob } from "./types";
 
 export const REVIEW_CORRECTION_FIELDS = [
@@ -77,9 +78,9 @@ export function applyReviewCorrections<T extends object>(candidate: T, correctio
 
 export function prepareCorrectedCandidate(candidate: CollectedJob, corrections: unknown): CollectedJob {
   const corrected = sanitizeCollectedJobFields(applyReviewCorrections(candidate, corrections));
-  const start = corrected.applicationStartDate;
-  const end = corrected.lastDate;
-  if (start && end && /^\d{4}-\d{2}-\d{2}$/.test(start) && /^\d{4}-\d{2}-\d{2}$/.test(end) && start > end) {
+  const start = parseSupportedDate(corrected.applicationStartDate);
+  const end = parseSupportedDate(corrected.lastDate);
+  if (start && end && start > end) {
     throw new ReviewCorrectionValidationError("Application start date must not be after the last date.");
   }
   return corrected;

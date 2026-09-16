@@ -10,7 +10,8 @@
     "lint": "eslint",
     "validate:production": "powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File ./scripts/Validate-AllJobsIndia-Production-Env.ps1",
     "test": "node --experimental-strip-types --import ./tests/register-loader.mjs --test tests/*.test.mjs",
-    "prebuild": "prisma generate"
+    "prebuild": "prisma generate",
+    "pretest": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",

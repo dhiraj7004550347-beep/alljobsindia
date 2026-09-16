@@ -131,11 +131,14 @@ function ageLimit(value: string | null | undefined) {
   cleaned = cutAt(cleaned, [
     /\s+(?:nationality|selection (?:process|procedure)|how to apply|application procedure|general (?:conditions|instructions)|candidates who are not|no ta\/da)\b/i,
     /\s+\([ivx]+\)\s+(?:nationality|selection|application)\b/i,
-  ]);
+    /\s+(?:[a-z][.)]\s+)?(?:selected students?|joining procedures?|caste certificate|application form)\b/i,
+  ], 0);
+  // An incomplete age reference date is not a usable eligibility rule.
+  if (/\bas on(?:\s+the)?\s*$/i.test(cleaned)) return null;
   if (!/\b(?:\d{1,3}\s*(?:years?|yrs?)|(?:age\s*(?:limit|as on)|not exceeding|between|min(?:imum)?\.? age|max(?:imum)?\.? age)\D{0,35}\d{1,3}|\d{1,3}\s*(?:-|to)\s*\d{1,3}\s*(?:years?|yrs?)?)\b/i.test(cleaned.slice(0, 260))) {
     return null;
   }
-  return sanitizeSourceTextField(cleaned, 240);
+  return sanitizeSourceTextField(cleaned.replace(/\s*[•]+\s*$/, ""), 240);
 }
 
 function applicationFee(value: string | null | undefined) {
