@@ -85,7 +85,7 @@
 .searchInput { flex: 1; min-width: 0; width: 100%; border: none; outline: none; font-size: 16px; padding: 11px 5px; color: #101d42; }
 .searchBox:focus-within { outline: 2px solid #1554e8; outline-offset: 2px; }
 .clearButton { flex-shrink: 0; border: none; background: #edf2fa; border-radius: 8px; cursor: pointer; padding: 7px 9px; }
-.searchButton { flex-shrink: 0; background: #06102f; color: #fff; padding: 11px 18px; border-radius: 10px; font-weight: 900; }
+.searchButton { flex-shrink: 0; border: 0; cursor: pointer; background: #06102f; color: #fff; padding: 11px 18px; border-radius: 10px; font-weight: 900; }
 
 .buttons { display: flex; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
 .primaryButton, .secondaryButton { max-width: 100%; padding: 15px 20px; border-radius: 12px; font-weight: 900; text-align: center; }
