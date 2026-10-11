@@ -48,7 +48,7 @@ Public `/jobs` search is database-backed and paginated. Public APIs use an expli
 
 The single implementation lives in `lib/automation/`. Supported adapters are generic HTML, government HTML with bounded notice-detail/PDF enrichment, SSC's official public notice-board JSON endpoint, and direct PDF notification. JSON-LD is preferred; deterministic HTML/PDF extraction is the fallback; optional AI only fills source-supported missing fields after Zod validation.
 
-Production cron calls `POST /api/automation/cron` with `Authorization: Bearer <AUTOMATION_CRON_SECRET>`. A database lock prevents overlapping runs. A 6–12 hour schedule is a reasonable starting point; review source terms and server capacity.
+Production cron calls `/api/automation/cron` with `Authorization: Bearer <AUTOMATION_CRON_SECRET>`. A database lock prevents overlapping runs. The included Vercel schedule runs daily; review source terms and server capacity before changing its cadence.
 
 `AUTOMATION_MIN_DRAFT_CONFIDENCE` defaults to `0.60`. Candidates below that threshold are reported as `LOW_CONFIDENCE` and are not written even as drafts. The separate high-confidence threshold and all trust gates still control any future publication eligibility.
 
