@@ -171,11 +171,12 @@ export default function Home() {
           </p>
 
           {/* SEARCH */}
-          <div className={styles.searchBox}>
+          <form method="GET" action="/jobs" className={styles.searchBox}>
             <span>🔎</span>
 
             <input
               aria-label="Search jobs"
+              name="q"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search jobs, companies, qualification..."
@@ -184,6 +185,7 @@ export default function Home() {
 
             {search && (
               <button
+                type="button"
                 aria-label="Clear search"
                 onClick={() => setSearch("")}
                 className={styles.clearButton}
@@ -192,10 +194,10 @@ export default function Home() {
               </button>
             )}
 
-            <Link href="/jobs" className={styles.searchButton}>
+            <button type="submit" className={styles.searchButton}>
               Search
-            </Link>
-          </div>
+            </button>
+          </form>
 
           <div className={styles.buttons}>
             <a
