@@ -18,7 +18,7 @@ records from becoming public.
    requires `-ConfirmRegistration` for the Windows Task Scheduler change.
 
 For a hosted deployment, the included `vercel.json` schedules the authenticated
-automation endpoint every 12 hours. Add the same random value to both
+automation endpoint once daily. Add the same random value to both
 `AUTOMATION_CRON_SECRET` and `CRON_SECRET` in the Vercel project settings;
 Vercel Cron supplies the standard bearer token and the route accepts it without
 weakening the local scheduler path. Vercel documents cron schedules and the
