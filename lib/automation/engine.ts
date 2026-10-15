@@ -15,6 +15,7 @@ import {
 import { expirePastJobs } from "./expiry";
 import {
   createAutomationRun,
+  failStaleAutomationRuns,
   finishAutomationRun,
   logRunItem,
 } from "./logger";
@@ -278,6 +279,9 @@ export async function runAutomation(
   const startedAt = new Date();
   const counts = countsTemplate();
   const previewJobs: AutomationRunSummary["previewJobs"] = [];
+  await failStaleAutomationRuns(
+    new Date(startedAt.getTime() - automationConfig.runLockMinutes * 60_000)
+  );
   const run = await createAutomationRun(dryRun, normalizedOptions.requestedBy);
   let lockAcquired = false;
   let finalStatus: AutomationRunSummary["status"] = "RUNNING";
