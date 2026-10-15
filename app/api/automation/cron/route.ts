@@ -8,6 +8,10 @@ import { automationConfig } from "@/lib/automation/config";
 import { isCronAuthorized } from "@/lib/automation/auth";
 
 export const dynamic = "force-dynamic";
+// The bounded collector can fetch several official sources per invocation.
+// Set the longest Hobby-compatible function duration so Vercel does not
+// terminate a healthy run before its completion record is persisted.
+export const maxDuration = 60;
 
 async function handle(
   request: NextRequest

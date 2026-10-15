@@ -9,6 +9,32 @@ export async function createAutomationRun(dryRun: boolean, requestedBy?: string)
   });
 }
 
+/** Mark runs abandoned by a terminated serverless invocation as failed. */
+export async function failStaleAutomationRuns(staleBefore: Date) {
+  const staleRuns = await prisma.automationRun.findMany({
+    where: { status: "RUNNING", startedAt: { lt: staleBefore } },
+    orderBy: { startedAt: "asc" },
+    take: 100,
+    select: { id: true, startedAt: true },
+  });
+  const completedAt = new Date();
+  for (const run of staleRuns) {
+    await prisma.automationRun.updateMany({
+      where: { id: run.id, status: "RUNNING" },
+      data: {
+        status: "FAILED",
+        completedAt,
+        durationMs: Math.min(
+          2_147_483_647,
+          Math.max(0, completedAt.getTime() - run.startedAt.getTime())
+        ),
+        errorMessage: "Run exceeded its lock lease and was marked failed during recovery.",
+      },
+    });
+  }
+  return staleRuns.length;
+}
+
 export async function logRunItem(input: {
   runId: number;
   sourceId?: number | null;

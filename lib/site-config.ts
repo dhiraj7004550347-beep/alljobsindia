@@ -1,5 +1,9 @@
 function readSiteUrl() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const previewProductionHost = process.env.VERCEL_ENV === "preview"
+    ? process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim()
+    : undefined;
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+    || (previewProductionHost ? `https://${previewProductionHost}` : "");
   if (!configured && process.env.NODE_ENV !== "production") {
     return "http://localhost:3000";
   }
