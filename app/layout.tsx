@@ -33,6 +33,10 @@ export const metadata: Metadata = {
 
   creator: "All Jobs India",
 
+  verification: {
+    google: "91HlUhT-vjIaSgBi086q3Hyc3ZAu9E0AbPYNKJDp30w",
+  },
+
   openGraph: {
     type: "website",
     siteName: "All Jobs India",
