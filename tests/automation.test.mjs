@@ -505,6 +505,8 @@ test("PDF worker preloads and text extraction succeeds", async () => {
   const parsed = await extractPdfText(minimalTextPdf("Official Recruitment Notice"));
   assert.match(parsed.text, /Official Recruitment Notice/);
   assert.equal(parsed.pagesRead, 1);
+  assert.equal(parsed.scannedLikely, true);
+  assert.equal(parsed.ocrPages, 1, "scanned/low-text PDFs should use the bundled OCR fallback");
 });
 
 test("PDF field cleanup removes mojibake and rejects table serials as vacancy totals", () => {
@@ -796,3 +798,4 @@ test("persisted review decisions change only the proposed action", () => {
   assert.equal(correction.action, "LOW_CONFIDENCE");
   assert.match(correction.reason, /missing official deadline/);
 });
+

@@ -3,10 +3,13 @@ import type { NextConfig } from "next";
 const pdfRuntimeFiles = [
   "./node_modules/@napi-rs/canvas*/**/*",
   "./node_modules/pdfjs-dist/legacy/build/*.mjs",
+  "./node_modules/tesseract.js/**/*",
+  "./node_modules/tesseract.js-core/**/*",
+  "./node_modules/@tesseract.js-data/eng/**/*",
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas"],
+  serverExternalPackages: ["pdfjs-dist", "@napi-rs/canvas", "tesseract.js", "@tesseract.js-data/eng"],
   outputFileTracingIncludes: {
     "/api/admin/sources/*/test": pdfRuntimeFiles,
     "/api/admin/sources/*/run": pdfRuntimeFiles,
@@ -29,3 +32,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+

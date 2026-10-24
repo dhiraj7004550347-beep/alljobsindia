@@ -98,7 +98,8 @@ export async function collectPdfUrl(
     rawText,
     contentHash: contentHash(rawText || new TextDecoder().decode(fetched.bytes)),
     isCorrigendum: isPdfAmendmentNotice(pdfTitle(rawText, fallback), fallback, rawText),
-    extractionMethod: "PDF",
+    extractionMethod: parsed.ocrPages > 0 ? "PDF_OCR" : "PDF",
+    warnings: parsed.warnings,
   };
 }
 
@@ -112,7 +113,8 @@ export const PdfNotificationAdapter: SourceAdapter = {
     return {
       jobs: [job], discoveredSources: [], contentHash: job.contentHash,
       metrics: { rawLinks: 1, recruitmentLinks: 1, uniqueNotices: 1, rejectedNoise: 0 },
-      warnings: [],
+      warnings: job.warnings || [],
     };
   },
 };
+

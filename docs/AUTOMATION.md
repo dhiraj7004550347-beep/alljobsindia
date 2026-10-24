@@ -10,7 +10,7 @@
 - `collector.ts` and `adapters/` — adapter selection and per-source isolation.
 - `adapters/ssc-notice-board.ts` — bounded reads from SSC's official public notice-board API; result/schedule noise is rejected before PDF enrichment.
 - `adapters/notice-enrichment.ts` — merges a detail page and its official notification PDF into the same canonical notice.
-- `pdf-parser.ts` — bounded text-layer extraction. Scanned PDFs are not OCRed automatically.
+- `pdf-parser.ts` — bounded PDF text extraction with a Tesseract OCR fallback for scanned pages.
 - `pdf-fields.ts` — deterministic, source-supported vacancy, qualification, age, pay, selection, application and date extraction; a generic website URL is never treated as an apply URL.
 - `ai-extractor.ts` — optional Zod-validated extraction; every returned value must be supported by source text.
 - `validator.ts` — confidence and publication eligibility.
@@ -39,6 +39,22 @@ The `pdfjs-dist` worker module is loaded before the main parser, preventing its 
 
 The default draft-quality threshold is 60%. Passing that gate means only that a notice may be proposed for a review-required draft; it does not make the notice trusted or eligible for auto-publication.
 
+Scanned PDF OCR uses `tesseract.js` with `@napi-rs/canvas`, processes at most
+`AUTOMATION_MAX_PDF_OCR_PAGES` pages per PDF (default 5, hard maximum 20), and
+serializes OCR work within a warm process to bound CPU and memory. OCR defaults
+to English (`AUTOMATION_PDF_OCR_LANGUAGES=eng`); set `eng+hin` to also recognize
+Hindi. The English trained-data model is bundled with the app, so the default
+OCR path does not fetch a language model at run time. For additional languages,
+set `AUTOMATION_PDF_OCR_LANGUAGES` and point `AUTOMATION_PDF_OCR_LANG_PATH` at a
+directory containing their Tesseract models. A failed model load or OCR attempt becomes a run warning;
+the source remains unavailable for enablement if its test does not pass. PDFs
+whose page count or OCR page cap truncates extraction explicitly report that
+warning. Source tests distinguish `PASS` (at least one notice was parsed and
+validated), `NEEDS_REVIEW` (the page loaded but no current valid notice passed),
+and `BLOCKED_OR_FAILED`; HTTP accessibility alone does not count as a passing
+source. The Source Manager can run all registered tests read-only and displays
+the per-source outcome without changing source state.
+
 ## V9–V11 release gates
 
 V9 adds a write-free process-local guard to the source-test route. One source
@@ -65,3 +81,4 @@ The old `updated` response property remains as a compatibility alias.
 `/admin/review` calls the source-test endpoint, which reads sources and existing Jobs but creates no Job, source-health row or automation-run row. Candidate keys prefer source notice IDs, then canonical notification URLs, then detail/title/date identity. A separate snapshot hash detects any source-supported field change.
 
 Bulk write runs require `AUTOMATION_DRY_RUN=false` and `AUTOMATION_ALLOW_WRITE_RUNS=true`. Manual draft creation requires `AUTOMATION_ALLOW_MANUAL_DRAFTS=true`; review decision audit writes require `AUTOMATION_ALLOW_REVIEW_DECISIONS=true`. These switches are independent and default to false. The manual draft endpoint re-collects and revalidates the current official notice, rejects stale snapshots, low-confidence/expired/rejected items and persistent matches, and forces the created record to `DRAFT` with `featured=false` and `publishedAt=null`.
+

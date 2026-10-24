@@ -34,7 +34,8 @@ export type CollectedJob = {
   rawText: string;
   contentHash: string;
   isCorrigendum?: boolean;
-  extractionMethod: "JSON_LD" | "HTML" | "PDF" | "AI";
+  warnings?: string[];
+  extractionMethod: "JSON_LD" | "HTML" | "PDF" | "PDF_OCR" | "AI";
 };
 
 export type DiscoveredSource = {
@@ -148,5 +149,7 @@ export type RunAutomationOptions = {
 
 export type SourceTestSummary = Omit<AutomationRunSummary, "id" | "startedAt" | "completedAt" | "status" | "dryRun" | "durationMs" | "added" | "draftsCreated"> & {
   access: "ACCESSIBLE" | "BLOCKED_OR_FAILED";
+  testStatus: "PASS" | "NEEDS_REVIEW" | "BLOCKED_OR_FAILED";
   warnings: string[];
 };
+

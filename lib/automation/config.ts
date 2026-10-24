@@ -53,6 +53,9 @@ export const automationConfig = {
     3
   ),
   maxPdfPages: positiveInteger(process.env.AUTOMATION_MAX_PDF_PAGES, 40),
+  maxPdfOcrPages: Math.min(20, positiveInteger(process.env.AUTOMATION_MAX_PDF_OCR_PAGES, 5)),
+  pdfOcrLanguages: (process.env.AUTOMATION_PDF_OCR_LANGUAGES || "eng").trim() || "eng",
+  pdfOcrLangPath: (process.env.AUTOMATION_PDF_OCR_LANG_PATH || "").trim(),
   concurrency: positiveInteger(process.env.AUTOMATION_CONCURRENCY, 3),
   requestTimeoutMs: positiveInteger(
     process.env.AUTOMATION_TIMEOUT_MS,
@@ -85,3 +88,4 @@ export const automationConfig = {
   aiEnabled: Boolean(apiKey && model),
   model,
 } as const;
+

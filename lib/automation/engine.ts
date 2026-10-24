@@ -657,6 +657,7 @@ export async function testSource(sourceId: number): Promise<SourceTestSummary> {
       ...counts,
       wouldUpdate: 0,
       access: "BLOCKED_OR_FAILED",
+      testStatus: "BLOCKED_OR_FAILED",
       previewJobs: [],
       warnings: [...result.warnings, result.error || "Source collection failed"],
     } as SourceTestSummary;
@@ -729,11 +730,22 @@ export async function testSource(sourceId: number): Promise<SourceTestSummary> {
       previewJobs.push(buildPreviewJob(rawCandidate, source, 0, "LOW_CONFIDENCE", error instanceof Error ? error.message : "Candidate could not be parsed."));
     }
   }
+  const hasValidNotice = previewJobs.some((job) =>
+    ["WOULD_ADD", "WOULD_UPDATE", "DUPLICATE"].includes(job.action)
+  );
+  const testStatus = hasValidNotice && counts.errors === 0
+    ? "PASS"
+    : "NEEDS_REVIEW";
+  if (testStatus === "NEEDS_REVIEW") {
+    result.warnings.push("No valid current recruitment notice passed parsing and validation; keep this source disabled pending review.");
+  }
   return {
     ...counts,
     wouldUpdate: counts.updated,
     access: "ACCESSIBLE",
+    testStatus,
     previewJobs,
     warnings: result.warnings,
   } as SourceTestSummary;
 }
+

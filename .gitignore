@@ -12,6 +12,9 @@
 
 # testing
 /coverage
+/eng.traineddata
+/eng.traineddata.gz
+/.npm-cache-task
 
 # next.js
 /.next/
@@ -42,3 +45,4 @@ yarn-error.log*
 next-env.d.ts
 
 /lib/generated/prisma
+

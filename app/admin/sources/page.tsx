@@ -18,6 +18,7 @@ type Source = {
   lastSuccessAt?: string | null;
   consecutiveFailures: number;
 };
+type SourceTestRow = { name: string; status: string; rawLinks: number; parsedJobs: number; wouldAdd: number; errors: number; warning?: string };
 
 const emptySource = {
   name: "",
@@ -38,6 +39,8 @@ export default function SourceManagerPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [writeRunsEnabled, setWriteRunsEnabled] = useState(false);
+  const [testProgress, setTestProgress] = useState("");
+  const [testReport, setTestReport] = useState<SourceTestRow[]>([]);
 
   const load = useCallback(async () => {
     const [response, statusResponse] = await Promise.all([
@@ -126,12 +129,67 @@ export default function SourceManagerPage() {
       if (!response.ok) throw new Error(data.error || "Source run failed");
       const result = data.result;
       setMessage(dryRun
-        ? `Read-only test: ${result.access}. Raw links ${result.rawLinks ?? result.candidates}; recruitment links ${result.recruitmentLinks ?? 0}; unique notices ${result.uniqueNotices ?? 0}; parsed jobs ${result.parsedJobs ?? result.processed}; would add ${result.wouldAdd}; would update ${result.updated}; rejected ${result.rejected ?? 0}; errors ${result.errors}. No Job or source record was written.`
+        ? `Read-only test: ${result.testStatus || result.access}. Raw links ${result.rawLinks ?? result.candidates}; recruitment links ${result.recruitmentLinks ?? 0}; unique notices ${result.uniqueNotices ?? 0}; parsed jobs ${result.parsedJobs ?? result.processed}; would add ${result.wouldAdd}; would update ${result.updated}; rejected ${result.rejected ?? 0}; errors ${result.errors}. No Job or source record was written.`
         : `Run finished: raw links ${result.rawLinks ?? result.candidates}; unique notices ${result.uniqueNotices ?? result.processed}; would add ${result.wouldAdd || result.added}.`
       );
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Source run failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function testEverySource() {
+    if (busy || sources.length === 0) return;
+    setBusy(true);
+    setTestReport([]);
+    setTestProgress(`Starting read-only tests for ${sources.length} sources…`);
+    const results: SourceTestRow[] = new Array(sources.length);
+    let cursor = 0;
+    let completed = 0;
+    const worker = async () => {
+      while (cursor < sources.length) {
+        const index = cursor++;
+        const source = sources[index];
+        try {
+          const response = await fetch(`/api/admin/sources/${source.id}/test`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          const body = await response.json();
+          const result = body.result;
+          results[index] = {
+            name: source.name,
+            status: response.ok ? result?.testStatus || result?.access || "UNKNOWN" : "BLOCKED_OR_FAILED",
+            rawLinks: Number(result?.rawLinks ?? result?.candidates ?? 0),
+            parsedJobs: Number(result?.parsedJobs ?? result?.processed ?? 0),
+            wouldAdd: Number(result?.wouldAdd ?? 0),
+            errors: Number(result?.errors ?? 1),
+            warning: response.ok ? result?.warnings?.join("; ") : body.error || `HTTP ${response.status}`,
+          };
+        } catch (error) {
+          results[index] = {
+            name: source.name,
+            status: "BLOCKED_OR_FAILED",
+            rawLinks: 0,
+            parsedJobs: 0,
+            wouldAdd: 0,
+            errors: 1,
+            warning: error instanceof Error ? error.message : "Request failed",
+          };
+        }
+        completed++;
+        setTestProgress(`Read-only source tests: ${completed}/${sources.length} complete. No jobs or source settings are written.`);
+      }
+    };
+    try {
+      await Promise.all(Array.from({ length: Math.min(3, sources.length) }, () => worker()));
+      setTestReport(results);
+      const pass = results.filter((result) => result.status === "PASS").length;
+      const failed = results.filter((result) => result.status === "BLOCKED_OR_FAILED").length;
+      setTestProgress(`Completed ${results.length} read-only tests: ${pass} passed, ${results.length - pass - failed} need review, ${failed} blocked/failed. All sources remain unchanged and disabled.`);
     } finally {
       setBusy(false);
     }
@@ -170,6 +228,15 @@ export default function SourceManagerPage() {
 
       {message && <div className="rounded-xl border bg-white p-4 text-sm font-semibold">{message}</div>}
 
+      <section className="rounded-xl border bg-white p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><h2 className="text-lg font-bold">Read-only source verification</h2><p className="mt-1 text-sm text-gray-600">Tests every registered source without changing trust, enablement, jobs, or publish settings.</p></div>
+          <button disabled={busy || sources.length === 0} onClick={() => void testEverySource()} className="rounded-lg border px-4 py-2 font-semibold disabled:opacity-50">{busy ? "Testing sources…" : `Test all ${sources.length} sources`}</button>
+        </div>
+        {testProgress && <p role="status" className="mt-3 text-sm font-medium">{testProgress}</p>}
+        {testReport.length > 0 && <div className="mt-4 max-h-96 overflow-auto rounded-lg border"><table className="w-full text-left text-sm"><thead className="sticky top-0 bg-slate-50"><tr>{["Source", "Result", "Raw links", "Parsed", "Would add", "Errors", "Warnings"].map((label) => <th className="p-2" key={label}>{label}</th>)}</tr></thead><tbody>{testReport.map((row, index) => <tr className="border-t align-top" key={`${row.name}-${index}`}><td className="p-2">{row.name}</td><td className="p-2 font-semibold">{row.status}</td><td className="p-2">{row.rawLinks}</td><td className="p-2">{row.parsedJobs}</td><td className="p-2">{row.wouldAdd}</td><td className="p-2">{row.errors}</td><td className="max-w-sm p-2 text-xs text-gray-600">{row.warning || "—"}</td></tr>)}</tbody></table></div>}
+      </section>
+
       <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
         <table className="w-full min-w-[1050px] text-sm">
           <thead className="bg-slate-50 text-left"><tr>{["Source","Type","Trust","Health","Last checked","Last success","Actions"].map((label) => <th key={label} className="p-4">{label}</th>)}</tr></thead>
@@ -182,7 +249,7 @@ export default function SourceManagerPage() {
                 <td className="p-4">{source.consecutiveFailures === 0 ? "Healthy" : `${source.consecutiveFailures} failure(s)`}</td>
                 <td className="p-4">{source.lastCheckedAt ? new Date(source.lastCheckedAt).toLocaleString("en-IN") : "Never"}</td>
                 <td className="p-4">{source.lastSuccessAt ? new Date(source.lastSuccessAt).toLocaleString("en-IN") : "Never"}</td>
-                <td className="p-4"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => edit(source)} className="rounded border px-3 py-2">Edit</button><button disabled={busy} onClick={() => void run(source, true)} className="rounded border px-3 py-2">Test</button><button disabled={busy || !source.enabled || !writeRunsEnabled} title={writeRunsEnabled ? "Run source with database writes" : "Bulk write runs are locked"} onClick={() => void run(source, false)} className="rounded bg-slate-900 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40">{writeRunsEnabled ? "Run" : "Locked"}</button></div></td>
+                <td className="p-4"><div className="flex flex-wrap gap-2"><button disabled={busy} onClick={() => edit(source)} className="rounded border px-3 py-2">Edit</button><button disabled={busy} onClick={() => void run(source, true)} title="Read-only parse test; does not write jobs or source state" className="rounded border px-3 py-2">Test / Preview</button><button disabled={busy || !source.enabled || !writeRunsEnabled} title={writeRunsEnabled ? "Run source with database writes" : "Database writes are locked by the server environment"} onClick={() => void run(source, false)} className="rounded bg-slate-900 px-3 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40">{writeRunsEnabled ? "Write Run" : "Write Locked"}</button></div></td>
               </tr>
             ))}
             {sources.length === 0 && <tr><td colSpan={7} className="p-10 text-center text-gray-500">No sources yet. Add only an official source you have reviewed.</td></tr>}
@@ -200,3 +267,4 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (value: boolean) => void }) {
   return <label className="flex items-center gap-2"><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /> <span className="font-semibold">{label}</span></label>;
 }
+
