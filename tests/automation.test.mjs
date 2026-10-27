@@ -637,6 +637,15 @@ test("SBI qualification cleanup drops experience and age text before education",
   assert.doesNotMatch(cleaned.qualification || "", /Experience GM|Min- 40 Max-55/);
 });
 
+test("qualification cleanup does not mistake the word be for a B.E. degree", () => {
+  const cleaned = sanitizeCollectedJobFields({
+    title: "Engagement of Specialist Cadre Officers",
+    qualification: "be called for interview. The shortlisting committee constituted by the Bank will decide the shortlisting parameters and adequate candidates will be called for interview.",
+    rawText: "Official SBI recruitment notice with application details.",
+  });
+  assert.equal(cleaned.qualification, null);
+});
+
 test("navigation chrome cannot become a department", () => {
   const sanitized = sanitizeCollectedJobFields({
     title: "Recruitment of Engineer",
