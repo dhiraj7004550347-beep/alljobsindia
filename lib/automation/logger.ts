@@ -2,6 +2,7 @@ import "server-only";
 
 import type { AutomationAction, AutomationRunStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { persistedAutomationRunCounts } from "./run-persistence";
 
 export async function createAutomationRun(dryRun: boolean, requestedBy?: string) {
   return prisma.automationRun.create({
@@ -82,7 +83,7 @@ export async function finishAutomationRun(
   return prisma.automationRun.update({
     where: { id: runId },
     data: {
-      ...counts,
+      ...persistedAutomationRunCounts(counts),
       status,
       completedAt,
       durationMs: completedAt.getTime() - startedAt.getTime(),
@@ -104,3 +105,4 @@ export async function readAutomationRuns(limit = 20, runId?: number) {
     },
   });
 }
+
