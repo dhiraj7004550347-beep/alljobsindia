@@ -73,7 +73,7 @@ function qualification(value: string | null | undefined) {
   );
   if (
     education > 0 &&
-    /(?:date|time|walk[- ]?in|anticipated|name of the post|vacanc|discipline|\bjrf\b)/i.test(
+    /(?:date|time|walk[- ]?in|anticipated|name of the post|vacanc|discipline|experience|\\bjrf\\b)/i.test(
       cleaned.slice(0, education)
     )
   ) {
