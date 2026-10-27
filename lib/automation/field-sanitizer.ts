@@ -69,7 +69,7 @@ function qualification(value: string | null | undefined) {
   let cleaned = sanitizeSourceTextField(value, 1_200);
   if (!cleaned) return null;
   const education = cleaned.search(
-    /\b(?:10th|12th|matric|iti|ncvt|scvt|graduate|post[ -]?graduate|b\.?e\.?|b\.?tech|m\.?e\.?|m\.?tech|ph\.?d|degree|diploma|master|bachelor|net|gate)\b/i
+    /\b(?:10th|12th|matric|iti|ncvt|scvt|graduate|post[ -]?graduate|b\s*\.\s*e\.?|b\s*\.\s*tech|m\s*\.\s*e\.?|m\s*\.\s*tech|ph\s*\.\s*d|degree|diploma|master|bachelor|net|gate)\b/i
   );
   if (
     education > 0 &&
@@ -85,7 +85,7 @@ function qualification(value: string | null | undefined) {
     /\s+\d{1,2}[./-]\d{1,2}[./-]20\d{2}\b/,
     /\s+\d{1,2}\s*\.\s+(?=[A-Z])/,
   ]);
-  if (!/\b(?:10th|12th|matric|iti|ncvt|scvt|graduate|post[ -]?graduate|b\.?e\.?|b\.?tech|m\.?e\.?|m\.?tech|ph\.?d|degree|diploma|master|bachelor|net|gate)\b/i.test(cleaned.slice(0, 200))) {
+  if (!/\b(?:10th|12th|matric|iti|ncvt|scvt|graduate|post[ -]?graduate|b\s*\.\s*e\.?|b\s*\.\s*tech|m\s*\.\s*e\.?|m\s*\.\s*tech|ph\s*\.\s*d|degree|diploma|master|bachelor|net|gate)\b/i.test(cleaned.slice(0, 200))) {
     return null;
   }
   return sanitizeSourceTextField(cleaned, 420);
