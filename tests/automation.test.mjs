@@ -627,6 +627,16 @@ test("final candidate sanitization removes merged mojibake and bounds review fie
   assert.ok((cleaned.selectionProcess?.length || 0) <= 360);
 });
 
+test("SBI qualification cleanup drops experience and age text before education", () => {
+  const cleaned = sanitizeCollectedJobFields({
+    title: "Engagement of Specialist Cadre Officers",
+    qualification: "Experience GM & Chief AI officer Min- 40 Max-55 B.E. / B.Tech / M.Tech in Computer Science. Minimum 15+ years’ experience in Banking / BFSI / IT.",
+    rawText: "Official SBI recruitment notice with application details.",
+  });
+  assert.match(cleaned.qualification || "", /^B\\.E\\./);
+  assert.doesNotMatch(cleaned.qualification || "", /Experience GM|Min- 40 Max-55/);
+});
+
 test("navigation chrome cannot become a department", () => {
   const sanitized = sanitizeCollectedJobFields({
     title: "Recruitment of Engineer",
